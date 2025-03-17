@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AUbatch - Web-based Job Scheduler</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+  <link href="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.css" rel="stylesheet" type="text/css"/>
+  <link href="styles.css" rel="stylesheet" type="text/css"/>
+  <script type="text/javascript" src="aubatch.min.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>AUbatch Job Scheduler</h1>
+  <p>Web-based CPU Batch Scheduling System:: Part of COMP7500-AUBatch CLI edition</p>
+  <p style="margin-bottom: 0;">Developed By Jahidul Arafat, Presidential Graduate Research Fellow, CSSE, AU, USA; (ex) Sr. Solution Architect, Oracle</p>
+  <p style="text-align: center; margin-top: 0;">
+    <a href="https://www.linkedin.com/in/jahidul-arafat-presidential-fellow-phd-student-791a7490/" target="_blank" style="color: white; text-decoration: underline; transition: color 0.3s;" onmouseover="this.style.color='#cccccc'" onmouseout="this.style.color='white'">https://www.linkedin.com/in/jahidul-arafat-presidential-fellow-phd-student-791a7490/</a>
+  </p>
+
+</header>
+
+<div class="container">
+  <div class="grid-container">
+    <div class="panel">
+      <h2 class="panel-title">Job Queue Visualization</h2>
+      <div id="network-container" class="visualization-container"></div>
+      <div class="quick-actions">
+        <button id="refresh-viz" class="button">Refresh Visualization</button>
+        <button id="clear-all" class="button button-danger">Clear All Jobs</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">System Status</h2>
+      <div class="stats-container">
+        <div class="stat-card">
+          <div class="stat-label">Jobs in Queue</div>
+          <div id="stats-queue" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Jobs Running</div>
+          <div id="stats-running" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Jobs Completed</div>
+          <div id="stats-completed" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Scheduling Policy</div>
+          <div id="stats-policy" class="stat-value">FCFS</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 20px;">Current Jobs</h3>
+      <div style="overflow-x: auto;">
+        <table class="job-table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>CPU Time</th>
+            <th>Priority</th>
+            <th>Arrival Time</th>
+            <th>Status</th>
+          </tr>
+          </thead>
+          <tbody id="job-table-body">
+          <tr>
+            <td colspan="5" style="text-align: center;">No jobs in the system</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="benchmark-progress" class="progress-container">
+        <h3>Benchmark Progress</h3>
+        <div class="progress-bar-container">
+          <div id="benchmark-progress-bar" class="progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="benchmark-progress-text" class="progress-text">0%</div>
+      </div>
+    </div>
+
+    <div class="panel control-panel">
+      <h2 class="panel-title">Control Panel</h2>
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="job-submission">Job Submission</button>
+          <button class="tab-button" data-tab="scheduling">Scheduling</button>
+          <button class="tab-button" data-tab="benchmark">Benchmark</button>
+          <button class="tab-button" data-tab="logs">System Logs</button>
+        </div>
+
+        <div id="job-submission" class="tab-content active">
+          <form id="job-form">
+            <div class="form-group">
+              <label for="job-name">Job Name</label>
+              <input type="text" id="job-name" required placeholder="Enter job name">
+            </div>
+            <div class="form-group">
+              <label for="cpu-time">
+                CPU Time (seconds)
+                <div class="tooltip">
+                  <span class="tooltip-icon">?</span>
+                  <span class="tooltip-text">The amount of time the job will take to execute</span>
+                </div>
+              </label>
+              <input type="number" id="cpu-time" min="1" value="5" required>
+            </div>
+            <div class="form-group">
+              <label for="priority">
+                Priority
+                <div class="tooltip">
+                  <span class="tooltip-icon">?</span>
+                  <span class="tooltip-text">Higher values have higher priority when using priority scheduling</span>
+                </div>
+              </label>
+              <input type="number" id="priority" min="1" value="5" required>
+            </div>
+            <button type="submit" class="button button-success">Submit Job</button>
+          </form>
+        </div>
+
+        <div id="scheduling" class="tab-content">
+          <div class="form-group">
+            <label for="policy-select">Scheduling Policy</label>
+            <select id="policy-select">
+              <option value="fcfs">First-Come-First-Served (FCFS)</option>
+              <option value="sjf">Shortest Job First (SJF)</option>
+              <option value="priority">Priority-based</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Policy Description</label>
+            <div id="policy-description" style="padding: 10px; background-color: #f8f9fa; border-radius: 4px;">
+              FCFS schedules jobs in the order they arrive, regardless of execution time or priority.
+            </div>
+          </div>
+          <button id="apply-policy" class="button">Apply Policy</button>
+        </div>
+
+        <div id="benchmark" class="tab-content">
+          <form id="benchmark-form">
+            <div class="form-group">
+              <label for="bench-name">Benchmark Name</label>
+              <input type="text" id="bench-name" value="test-bench" required>
+            </div>
+            <div class="form-group">
+              <label for="bench-policy">Scheduling Policy</label>
+              <select id="bench-policy">
+                <option value="fcfs">First-Come-First-Served (FCFS)</option>
+                <option value="sjf">Shortest Job First (SJF)</option>
+                <option value="priority">Priority-based</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="num-jobs">
+                Number of Jobs
+                <div class="tooltip">
+                  <span class="tooltip-icon">?</span>
+                  <span class="tooltip-text">Total number of jobs to generate</span>
+                </div>
+              </label>
+              <input type="number" id="num-jobs" min="1" max="20" value="5" required>
+            </div>
+            <div class="form-group">
+              <label for="arrival-rate">
+                Arrival Rate (jobs/second)
+                <div class="tooltip">
+                  <span class="tooltip-icon">?</span>
+                  <span class="tooltip-text">Value between 0 and 1 that controls how quickly jobs arrive</span>
+                </div>
+              </label>
+              <input type="number" id="arrival-rate" min="0.1" max="1" step="0.1" value="0.5" required>
+            </div>
+            <div class="form-group">
+              <label for="priority-levels">
+                Priority Levels
+                <div class="tooltip">
+                  <span class="tooltip-icon">?</span>
+                  <span class="tooltip-text">Maximum priority value for generated jobs (0 to this value)</span>
+                </div>
+              </label>
+              <input type="number" id="priority-levels" min="1" value="10" required>
+            </div>
+            <div class="form-group">
+              <label for="min-cpu-time">Minimum CPU Time (seconds)</label>
+              <input type="number" id="min-cpu-time" min="1" value="1" required>
+            </div>
+            <div class="form-group">
+              <label for="max-cpu-time">Maximum CPU Time (seconds)</label>
+              <input type="number" id="max-cpu-time" min="1" value="5" required>
+            </div>
+            <button type="submit" class="button">Run Benchmark</button>
+          </form>
+        </div>
+
+        <div id="logs" class="tab-content">
+          <div id="log-container" class="log-container"></div>
+          <div class="button-group">
+            <button id="clear-logs" class="button button-secondary">Clear Logs</button>
+            <button id="show-metrics" class="button">Show Performance Metrics</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
